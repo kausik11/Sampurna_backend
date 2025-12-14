@@ -20,8 +20,12 @@ const jobRoutes = require("./src/routes/jobRoutes");
 const applicationRoutes = require("./src/routes/applicationRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const countRoutes = require("./src/routes/countRoutes");
+const analyticsRoutes = require("./src/routes/analyticsRoutes");
 const authMiddleware = require("./src/middlewares/authMiddleware");
 const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
+
+// Honor reverse proxies (e.g. Vercel) so req.ip contains the real client IP
+app.set("trust proxy", true);
 
 app.use(
   cors({
@@ -78,6 +82,8 @@ app.use("/api/newsletter", newsletterRoutes);
 
 // count for cities and Members
 app.use("/api/cities", countRoutes);
+// Visitor analytics
+app.use("/api/analytics", analyticsRoutes);
 // 404 handler for any unmatched routes
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Not found" });
