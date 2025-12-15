@@ -22,6 +22,7 @@ const userRoutes = require("./src/routes/userRoutes");
 const countRoutes = require("./src/routes/countRoutes");
 const analyticsRoutes = require("./src/routes/analyticsRoutes");
 const treatmentFaqRoutes = require("./src/routes/treatmentFaqsRoute");
+const patientSuccessRoutes = require("./src/routes/patientSuccessRoutes");
 const authMiddleware = require("./src/middlewares/authMiddleware");
 const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
 
@@ -55,12 +56,18 @@ app.use("/api/users", userRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/blogs", blogRoutes);
+
+// ****************************************************************** //
+
+
+
 // Ebooks: router handles auth for writes; reads remain public
 app.use("/api/ebooks", ebookRoutes);
 // Upcoming events: router handles auth for writes; reads remain public
 app.use("/api/upcoming-events", upcomingEventRoutes);
 // Ongoing events: router handles auth for writes; reads remain public
 app.use("/api/ongoing-events", ongoingEventRoutes);
+
   
 
 // Treatments: router handles auth for writes; reads remain public
@@ -91,6 +98,8 @@ app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/cities", countRoutes);
 // Visitor analytics
 app.use("/api/analytics", analyticsRoutes);
+// Patient success stories: public read, protected write
+app.use("/api/patient-success-stories", patientSuccessRoutes);
 // 404 handler for any unmatched routes
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Not found" });
