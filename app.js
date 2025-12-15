@@ -21,6 +21,7 @@ const applicationRoutes = require("./src/routes/applicationRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const countRoutes = require("./src/routes/countRoutes");
 const analyticsRoutes = require("./src/routes/analyticsRoutes");
+const treatmentFaqRoutes = require("./src/routes/treatmentFaqsRoute");
 const authMiddleware = require("./src/middlewares/authMiddleware");
 const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
 
@@ -64,10 +65,16 @@ app.use("/api/ongoing-events", ongoingEventRoutes);
 
 // Treatments: router handles auth for writes; reads remain public
 app.use("/api/treatments", treatmentRoutes);
+
+// Treatment FAQs: public read, protected write inside router
+app.use("/api/treatment-faqs", treatmentFaqRoutes);
+
 // Treatment sub-categories: router handles auth for writes; reads remain public
 app.use("/api/treatment-sub-categories", treatmentSubCategoryRoutes);
 // Treatment details: router handles auth for writes; reads remain public
 app.use("/api/treatment-details", treatmentDetailRoutes);
+
+
 // Addresses: router handles auth for writes; reads remain public
 app.use("/api/addresses", addressRoutes);
 // Contact submissions: router handles auth for writes; reads remain public
