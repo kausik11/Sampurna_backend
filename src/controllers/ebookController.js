@@ -1,24 +1,6 @@
-const fs = require("fs");
-const path = require("path");
 const { Readable } = require("stream");
 const Ebook = require("../models/Ebook");
 const cloudinary = require("../config/cloudinary");
-
-const UPLOAD_DIR =
-  process.env.EBOOK_UPLOAD_DIR ||
-  (process.env.VERCEL ? path.join("/tmp", "uploads", "ebooks") : path.join(__dirname, "../../uploads/ebooks"));
-
-const ensureUploadDir = () => {
-  try {
-    if (!fs.existsSync(UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    }
-  } catch (err) {
-    console.error("Failed to ensure ebook upload directory:", err);
-  }
-};
-
-ensureUploadDir();
 
 const streamUpload = (file, options) =>
   new Promise((resolve, reject) => {
@@ -27,7 +9,7 @@ const streamUpload = (file, options) =>
       return resolve(result);
     });
 
-    const source = file.buffer ? Readable.from(file.buffer) : fs.createReadStream(file.path);
+    const source = Readable.from(file.buffer);
     source.on("error", reject);
     source.pipe(uploadStream);
   });
@@ -63,8 +45,15 @@ const uploadPdf = async (file) => {
     type: "upload",
   });
 
+  const pdfUrl =
+    cloudinary.utils?.private_download_url?.(uploadResult.public_id, "pdf", {
+      resource_type: "raw",
+      attachment: true,
+      type: "upload",
+    }) || uploadResult.secure_url;
+
   return {
-    pdfUrl: uploadResult.secure_url,
+    pdfUrl,
     cloudinaryId: uploadResult.public_id,
   };
 };
@@ -78,25 +67,12 @@ const removeStoredPdf = async (filename) => {
   }
 };
 
-const removeLocalFile = async (fullPath) => {
-  if (!fullPath) return;
-  try {
-    await fs.promises.unlink(fullPath);
-  } catch (err) {
-    if (err.code !== "ENOENT") {
-      console.error("Failed to delete file:", err);
-    }
-  }
-};
-
 const uploadImage = async (file) => {
   const uploadResult = await streamUpload(file, {
     folder: "savemedha/ebooks/banners",
     resource_type: "image",
     format: "jpg",
   });
-
-  await removeLocalFile(file.path);
 
   return {
     imageUrl: uploadResult.secure_url,
@@ -266,19 +242,28 @@ const downloadEbook = async (req, res) => {
   try {
     const ebook = await Ebook.findById(req.params.id);
 
-  if (!ebook) {
-    return res.status(404).json({ message: "Ebook not found" });
-  }
+    if (!ebook) {
+      return res.status(404).json({ message: "Ebook not found" });
+    }
 
-  if (ebook.pdfUrl && ebook.pdfUrl.startsWith("http")) {
-    return res.redirect(ebook.pdfUrl);
-  }
+    const pdfUrl =
+      (ebook.cloudinaryId &&
+        cloudinary.utils?.private_download_url?.(ebook.cloudinaryId, "pdf", {
+          resource_type: "raw",
+          attachment: true,
+          type: "upload",
+        })) ||
+      ebook.pdfUrl;
 
-  return res.status(404).json({ message: "PDF file not found" });
-} catch (error) {
-  console.error("Failed to download ebook:", error);
-  res.status(500).json({ message: "Failed to download ebook" });
-}
+    if (pdfUrl && pdfUrl.startsWith("http")) {
+      return res.redirect(pdfUrl);
+    }
+
+    return res.status(404).json({ message: "PDF file not found" });
+  } catch (error) {
+    console.error("Failed to download ebook:", error);
+    res.status(500).json({ message: "Failed to download ebook" });
+  }
 };
 
 module.exports = {

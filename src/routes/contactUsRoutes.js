@@ -13,9 +13,9 @@ const router = express.Router();
 // Public
 router.get("/", getContacts);
 router.get("/:id", getContactById);
+router.post("/", createContact);
 
 // Protected
-router.post("/", createContact);
 router.put("/:id", authMiddleware, updateContact);
 router.delete("/:id", authMiddleware, deleteContact);
 

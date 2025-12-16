@@ -71,14 +71,19 @@ app.use("/api/ongoing-events", ongoingEventRoutes);
   
 
 // Treatments: router handles auth for writes; reads remain public
-app.use("/api/treatments", treatmentRoutes);
+// inused
+
+app.use("/api/treatments", treatmentRoutes);  
 
 // Treatment FAQs: public read, protected write inside router
+// inused
 app.use("/api/treatment-faqs", treatmentFaqRoutes);
 
 // Treatment sub-categories: router handles auth for writes; reads remain public
+// notused
 app.use("/api/treatment-sub-categories", treatmentSubCategoryRoutes);
 // Treatment details: router handles auth for writes; reads remain public
+// notused
 app.use("/api/treatment-details", treatmentDetailRoutes);
 
 
