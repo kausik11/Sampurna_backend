@@ -1,5 +1,3 @@
-const path = require("path");
-const fs = require("fs");
 const Job = require("../models/Job").Job;
 const JobApplication = require("../models/JobApplication");
 const cloudinary = require("../config/cloudinary");
@@ -20,7 +18,7 @@ const streamUpload = (file) =>
         folder: "savemedha/job-applications/resumes",
         resource_type: "raw", // explicit raw for pdfs
         format: "pdf",
-        },
+      },
       (err, result) => {
         if (err) return reject(err);
         return resolve(result);
@@ -60,8 +58,13 @@ const applyToJob = async (req, res) => {
     }
 
     const uploaded = await streamUpload(uploadedResume);
-    const resumeUrl = uploaded.secure_url;
     const cloudinaryId = uploaded.public_id;
+    const resumeUrl =
+      cloudinary.utils?.private_download_url?.(cloudinaryId, "pdf", {
+        resource_type: "raw",
+        attachment: true,
+        type: "upload",
+      }) || uploaded.secure_url;
 
     const application = await JobApplication.create({
       job: job._id,
