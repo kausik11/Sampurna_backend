@@ -15,7 +15,7 @@ router.get("/", getContacts);
 router.get("/:id", getContactById);
 
 // Protected
-router.post("/", authMiddleware, createContact);
+router.post("/", createContact);
 router.put("/:id", authMiddleware, updateContact);
 router.delete("/:id", authMiddleware, deleteContact);
 

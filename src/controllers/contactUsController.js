@@ -99,6 +99,10 @@ const updateContact = async (req, res) => {
       contact.comments = value;
     }
 
+    if (req.body.iscontacted !== undefined) {
+      contact.iscontacted = Boolean(req.body.iscontacted);
+    }
+
     await contact.save();
     res.status(200).json(contact);
   } catch (error) {

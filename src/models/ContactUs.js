@@ -6,6 +6,7 @@ const contactUsSchema = new mongoose.Schema(
     phone: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true },
     comments: { type: String, required: true, trim: true },
+    iscontacted: { type: Boolean, required: false, default: false },
   },
   { timestamps: true }
 );

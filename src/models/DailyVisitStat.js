@@ -11,7 +11,6 @@ const dailyVisitStatSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-dailyVisitStatSchema.index({ date: 1 }, { unique: true });
 dailyVisitStatSchema.index({ updatedAt: -1 });
 
 module.exports = mongoose.model("DailyVisitStat", dailyVisitStatSchema);
