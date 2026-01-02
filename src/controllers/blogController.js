@@ -1,17 +1,17 @@
 const Blog = require("../models/Blog");
+const BlogCategory = require("../models/BlogCategory");
+const BlogSubCategory = require("../models/BlogSubCategory");
 const cloudinary = require("../config/cloudinary");
-
-const VALID_CATEGORIES = ["cancer", "kidney", "heart", "nerve", "spinal", "other"];
 const SEARCH_DEBOUNCE_MS = 600;
 const lastSearchByClient = new Map();
 
-const uploadImage = async (file) => {
+const uploadImage = async (file, folder) => {
   const base64Image = `data:${file.mimetype};base64,${file.buffer.toString(
     "base64"
   )}`;
 
   const uploadResult = await cloudinary.uploader.upload(base64Image, {
-    folder: "savemedha/blogs",
+    folder,
     resource_type: "auto",
   });
 
@@ -21,10 +21,58 @@ const uploadImage = async (file) => {
   };
 };
 
+const uploadImages = async (files, folder) => {
+  if (!Array.isArray(files) || files.length === 0) return [];
+  return Promise.all(files.map((file) => uploadImage(file, folder)));
+};
+
 const normalizeMetadata = (metadata) => {
   if (!metadata) return [];
   if (Array.isArray(metadata)) return metadata.map((item) => `${item}`.trim()).filter(Boolean);
   return [`${metadata}`.trim()].filter(Boolean);
+};
+
+const normalizeFaqs = (faqs) => {
+  if (!faqs) return [];
+  let parsed = faqs;
+  if (typeof faqs === "string") {
+    try {
+      parsed = JSON.parse(faqs);
+    } catch (error) {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map((item) => ({
+      question: item?.question ? `${item.question}`.trim() : "",
+      answer: item?.answer ? `${item.answer}`.trim() : "",
+    }))
+    .filter((item) => item.question || item.answer);
+};
+
+const normalizeName = (value) => {
+  if (!value) return "";
+  return `${value}`.trim().toLowerCase();
+};
+
+const VALID_CANCER_STAGES = ["ANY", "IN TREATMENT", "NEWLY TREATMENT", "POST TREATMENT"];
+
+const normalizeCancerStage = (value) => {
+  if (!value) return "";
+  return `${value}`.trim().toUpperCase();
+};
+
+const resolveCategory = async (categoryInput) => {
+  const name = normalizeName(categoryInput);
+  if (!name) return null;
+  return BlogCategory.findOne({ name });
+};
+
+const resolveSubCategory = async (subCategoryInput, categoryId) => {
+  const name = normalizeName(subCategoryInput);
+  if (!name || !categoryId) return null;
+  return BlogSubCategory.findOne({ name, category: categoryId });
 };
 
 const debounceSearch = (req, res, next) => {
@@ -44,16 +92,29 @@ const debounceSearch = (req, res, next) => {
 
 const getBlogs = async (req, res) => {
   try {
-    const { category } = req.query;
+    const { category, subCategory } = req.query;
     const filter = {};
 
     if (category) {
-      if (!VALID_CATEGORIES.includes(category)) {
-        return res
-          .status(400)
-          .json({ message: "Invalid category. Use one of cancer, kidney, heart, nerve, spinal, other." });
+      const resolvedCategory = await resolveCategory(category);
+      if (!resolvedCategory) {
+        return res.status(400).json({ message: "Invalid category." });
       }
-      filter.category = category;
+      filter.category = resolvedCategory.name;
+    }
+
+    if (subCategory) {
+      const resolvedCategory = category ? await resolveCategory(category) : null;
+      if (!resolvedCategory) {
+        return res.status(400).json({ message: "Category is required to filter by sub-category." });
+      }
+
+      const resolvedSubCategory = await resolveSubCategory(subCategory, resolvedCategory._id);
+      if (!resolvedSubCategory) {
+        return res.status(400).json({ message: "Invalid sub-category for this category." });
+      }
+
+      filter.subCategory = resolvedSubCategory.name;
     }
 
     const blogs = await Blog.find(filter).sort({ createdAt: -1 });
@@ -66,7 +127,11 @@ const getBlogs = async (req, res) => {
 
 const getBlogById = async (req, res) => {
   try {
-    const blog = await Blog.findById(req.params.id);
+    const blog = await Blog.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { viewsCount: 1 } },
+      { new: true }
+    );
 
     if (!blog) {
       return res.status(404).json({ message: "Blog not found" });
@@ -81,35 +146,85 @@ const getBlogById = async (req, res) => {
 
 const createBlog = async (req, res) => {
   try {
-    const { title, description, category, writtenBy } = req.body;
+    const {
+      title,
+      description,
+      category,
+      subCategory,
+      cancerStage,
+      writtenBy,
+    } = req.body;
+    const adminQuotation = req.body.adminQuotation?.trim() || undefined;
+    const adminName = req.body.adminName?.trim() || undefined;
+    const adminDesignation = req.body.adminDesignation?.trim() || undefined;
     const metadata = normalizeMetadata(req.body.metadata);
+    const faqs = normalizeFaqs(req.body.faqs);
 
-    if (!title || !description || !category || !writtenBy) {
+    if (!title || !description || !category || !subCategory || !cancerStage || !writtenBy) {
       return res
         .status(400)
-        .json({ message: "Title, description, category, and writtenBy are required" });
+        .json({ message: "Title, description, category, sub-category, cancerStage, and writtenBy are required" });
     }
 
-    if (!VALID_CATEGORIES.includes(category)) {
-      return res
-        .status(400)
-        .json({ message: "Invalid category. Use one of cancer, kidney, heart, nerve, spinal, other." });
+    const normalizedStage = normalizeCancerStage(cancerStage);
+    if (!VALID_CANCER_STAGES.includes(normalizedStage)) {
+      return res.status(400).json({ message: "Invalid cancer stage." });
     }
 
-    if (!req.file) {
+    const resolvedCategory = await resolveCategory(category);
+    if (!resolvedCategory) {
+      return res.status(400).json({ message: "Invalid category." });
+    }
+
+    const resolvedSubCategory = await resolveSubCategory(subCategory, resolvedCategory._id);
+    if (!resolvedSubCategory) {
+      return res.status(400).json({ message: "Invalid sub-category for this category." });
+    }
+
+    if (!req.files?.image?.[0]) {
       return res.status(400).json({ message: "Image file is required" });
     }
 
-    const { imageUrl, imagePublicId } = await uploadImage(req.file);
+    const { imageUrl, imagePublicId } = await uploadImage(req.files.image[0], "savemedha/blogs");
+    const blogImageFiles = req.files?.blogImage || [];
+    if (blogImageFiles.length !== 2) {
+      return res.status(400).json({ message: "Exactly two blog images are required" });
+    }
+    const blogImages = await uploadImages(blogImageFiles, "savemedha/blogs/gallery");
+    const adminPhotoFile = req.files?.adminPhoto?.[0];
+    const hasAdminStatement = adminQuotation || adminName || adminDesignation || adminPhotoFile;
+
+    let adminStatement = undefined;
+    if (hasAdminStatement) {
+      if (!adminQuotation || !adminName || !adminDesignation || !adminPhotoFile) {
+        return res.status(400).json({
+          message: "Admin statement requires photo, quotation, name, and designation.",
+        });
+      }
+
+      const adminUpload = await uploadImage(adminPhotoFile, "savemedha/blogs/admin-statement");
+      adminStatement = {
+        photoUrl: adminUpload.imageUrl,
+        photoPublicId: adminUpload.imagePublicId,
+        quotation: adminQuotation,
+        name: adminName,
+        designation: adminDesignation,
+      };
+    }
 
     const blog = await Blog.create({
       title,
       description,
-      category,
+      category: resolvedCategory.name,
+      subCategory: resolvedSubCategory.name,
+      cancerStage: normalizedStage,
       writtenBy,
       metadata,
+      faqs,
       imageUrl,
       imagePublicId,
+      blogImage: blogImages,
+      adminStatement,
     });
 
     res.status(201).json(blog);
@@ -121,28 +236,72 @@ const createBlog = async (req, res) => {
 
 const updateBlog = async (req, res) => {
   try {
-    const { title, description, category, writtenBy } = req.body;
+    const {
+      title,
+      description,
+      category,
+      subCategory,
+      cancerStage,
+      writtenBy,
+    } = req.body;
+    const adminQuotation = req.body.adminQuotation?.trim() || undefined;
+    const adminName = req.body.adminName?.trim() || undefined;
+    const adminDesignation = req.body.adminDesignation?.trim() || undefined;
     const metadata = normalizeMetadata(req.body.metadata);
+    const faqs = normalizeFaqs(req.body.faqs);
     const blog = await Blog.findById(req.params.id);
 
     if (!blog) {
       return res.status(404).json({ message: "Blog not found" });
     }
 
-    if (category && !VALID_CATEGORIES.includes(category)) {
-      return res
-        .status(400)
-        .json({ message: "Invalid category. Use one of cancer, kidney, heart, nerve, spinal, other." });
+    let resolvedCategory = null;
+    if (category) {
+      resolvedCategory = await resolveCategory(category);
+      if (!resolvedCategory) {
+        return res.status(400).json({ message: "Invalid category." });
+      }
+    }
+
+    if (subCategory) {
+      const categoryToUse = resolvedCategory || (await resolveCategory(blog.category));
+      if (!categoryToUse) {
+        return res.status(400).json({ message: "Invalid category for sub-category selection." });
+      }
+
+      const resolvedSubCategory = await resolveSubCategory(subCategory, categoryToUse._id);
+      if (!resolvedSubCategory) {
+        return res.status(400).json({ message: "Invalid sub-category for this category." });
+      }
+
+      blog.subCategory = resolvedSubCategory.name;
+      if (category) {
+        blog.category = categoryToUse.name;
+      }
     }
 
     if (title) blog.title = title;
     if (description) blog.description = description;
-    if (category) blog.category = category;
+    if (category && !subCategory) {
+      const existingSubCategory = await resolveSubCategory(blog.subCategory, resolvedCategory._id);
+      if (!existingSubCategory) {
+        return res.status(400).json({ message: "Select a valid sub-category for this category." });
+      }
+      blog.category = resolvedCategory.name;
+    }
+    if (cancerStage) {
+      const normalizedStage = normalizeCancerStage(cancerStage);
+      if (!VALID_CANCER_STAGES.includes(normalizedStage)) {
+        return res.status(400).json({ message: "Invalid cancer stage." });
+      }
+      blog.cancerStage = normalizedStage;
+    }
     if (writtenBy) blog.writtenBy = writtenBy;
     if (metadata.length) blog.metadata = metadata;
+    if (req.body.faqs !== undefined) blog.faqs = faqs;
 
-    if (req.file) {
-      const { imageUrl, imagePublicId } = await uploadImage(req.file);
+    if (req.files?.image?.[0]) {
+      const { imageUrl, imagePublicId } = await uploadImage(req.files.image[0], "savemedha/blogs");
 
       if (blog.imagePublicId) {
         await cloudinary.uploader.destroy(blog.imagePublicId);
@@ -150,6 +309,65 @@ const updateBlog = async (req, res) => {
 
       blog.imageUrl = imageUrl;
       blog.imagePublicId = imagePublicId;
+    }
+
+    const blogImageFiles = req.files?.blogImage || [];
+    if (blogImageFiles.length) {
+      if (blogImageFiles.length !== 2) {
+        return res.status(400).json({ message: "Exactly two blog images are required" });
+      }
+      const blogImages = await uploadImages(blogImageFiles, "savemedha/blogs/gallery");
+      if (Array.isArray(blog.blogImage)) {
+        for (const image of blog.blogImage) {
+          if (image?.imagePublicId) {
+            await cloudinary.uploader.destroy(image.imagePublicId);
+          }
+        }
+      }
+      blog.blogImage = blogImages;
+    }
+
+    if (!blog.blogImage || blog.blogImage.length !== 2) {
+      return res.status(400).json({ message: "Exactly two blog images are required" });
+    }
+
+    const adminPhotoFile = req.files?.adminPhoto?.[0];
+    const hasAdminUpdates =
+      adminQuotation !== undefined ||
+      adminName !== undefined ||
+      adminDesignation !== undefined ||
+      adminPhotoFile;
+
+    if (hasAdminUpdates) {
+      const nextQuotation = adminQuotation ?? blog.adminStatement?.quotation;
+      const nextName = adminName ?? blog.adminStatement?.name;
+      const nextDesignation = adminDesignation ?? blog.adminStatement?.designation;
+
+      if (!nextQuotation || !nextName || !nextDesignation || (!blog.adminStatement?.photoUrl && !adminPhotoFile)) {
+        return res.status(400).json({
+          message: "Admin statement requires photo, quotation, name, and designation.",
+        });
+      }
+
+      let nextPhotoUrl = blog.adminStatement?.photoUrl;
+      let nextPhotoPublicId = blog.adminStatement?.photoPublicId;
+
+      if (adminPhotoFile) {
+        const adminUpload = await uploadImage(adminPhotoFile, "savemedha/blogs/admin-statement");
+        if (nextPhotoPublicId) {
+          await cloudinary.uploader.destroy(nextPhotoPublicId);
+        }
+        nextPhotoUrl = adminUpload.imageUrl;
+        nextPhotoPublicId = adminUpload.imagePublicId;
+      }
+
+      blog.adminStatement = {
+        photoUrl: nextPhotoUrl,
+        photoPublicId: nextPhotoPublicId,
+        quotation: nextQuotation,
+        name: nextName,
+        designation: nextDesignation,
+      };
     }
 
     await blog.save();
@@ -170,6 +388,16 @@ const deleteBlog = async (req, res) => {
 
     if (blog.imagePublicId) {
       await cloudinary.uploader.destroy(blog.imagePublicId);
+    }
+    if (Array.isArray(blog.blogImage)) {
+      for (const image of blog.blogImage) {
+        if (image?.imagePublicId) {
+          await cloudinary.uploader.destroy(image.imagePublicId);
+        }
+      }
+    }
+    if (blog.adminStatement?.photoPublicId) {
+      await cloudinary.uploader.destroy(blog.adminStatement.photoPublicId);
     }
 
     await blog.deleteOne();
@@ -204,13 +432,12 @@ const getBlogsByCategory = async (req, res) => {
   try {
     const { category } = req.params;
 
-    if (!VALID_CATEGORIES.includes(category)) {
-      return res
-        .status(400)
-        .json({ message: "Invalid category. Use one of cancer, kidney, heart, nerve, spinal, other." });
+    const resolvedCategory = await resolveCategory(category);
+    if (!resolvedCategory) {
+      return res.status(400).json({ message: "Invalid category." });
     }
 
-    const blogs = await Blog.find({ category }).sort({ createdAt: -1, title: 1 });
+    const blogs = await Blog.find({ category: resolvedCategory.name }).sort({ createdAt: -1, title: 1 });
     res.status(200).json(blogs);
   } catch (error) {
     console.error("Failed to fetch blogs by category:", error);
@@ -221,24 +448,64 @@ const getBlogsByCategory = async (req, res) => {
 const addComment = async (req, res) => {
   try {
     const { comment, name, phoneNumber } = req.body;
-    const blog = await Blog.findById(req.params.id);
-    if (!blog) {
-      return res.status(404).json({ message: "Blog not found" });
-    }
-
     if (!comment || !name || !phoneNumber) {
       return res
         .status(400)
         .json({ message: "Comment, name, and phone number are required" });
     }
 
-    blog.comments.unshift({ comment, name, phoneNumber });
-    await blog.save();
+    const blog = await Blog.findByIdAndUpdate(
+      req.params.id,
+      { $push: { comments: { $each: [{ comment, name, phoneNumber }], $position: 0 } } },
+      { new: true }
+    );
+
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
 
     res.status(201).json(blog);
   } catch (error) {
     console.error("Failed to add comment:", error);
     res.status(500).json({ message: "Failed to add comment" });
+  }
+};
+
+const likeBlog = async (req, res) => {
+  try {
+    const blog = await Blog.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { likesCount: 1 } },
+      { new: true }
+    );
+
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    res.status(200).json(blog);
+  } catch (error) {
+    console.error("Failed to like blog:", error);
+    res.status(500).json({ message: "Failed to like blog" });
+  }
+};
+
+const shareBlog = async (req, res) => {
+  try {
+    const blog = await Blog.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { sharesCount: 1 } },
+      { new: true }
+    );
+
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    res.status(200).json(blog);
+  } catch (error) {
+    console.error("Failed to share blog:", error);
+    res.status(500).json({ message: "Failed to share blog" });
   }
 };
 
@@ -248,6 +515,8 @@ module.exports = {
   createBlog,
   updateBlog,
   deleteBlog,
+  likeBlog,
+  shareBlog,
   searchBlogs,
   getBlogsByCategory,
   addComment,

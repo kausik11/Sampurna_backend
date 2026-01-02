@@ -6,6 +6,8 @@ const {
   createBlog,
   updateBlog,
   deleteBlog,
+  likeBlog,
+  shareBlog,
   searchBlogs,
   getBlogsByCategory,
   addComment,
@@ -14,13 +16,20 @@ const {
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const blogUploads = upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "adminPhoto", maxCount: 1 },
+  { name: "blogImage", maxCount: 2 },
+]);
 
 router.get("/", getBlogs);
 router.get("/search", debounceSearch, searchBlogs);
 router.get("/category/:category", getBlogsByCategory);
 router.get("/:id", getBlogById);
-router.post("/", upload.single("image"), createBlog);
-router.put("/:id", upload.single("image"), updateBlog);
+router.post("/:id/like", likeBlog);
+router.post("/:id/share", shareBlog);
+router.post("/", blogUploads, createBlog);
+router.put("/:id", blogUploads, updateBlog);
 router.delete("/:id", deleteBlog);
 router.post("/:id/comments", addComment);
 

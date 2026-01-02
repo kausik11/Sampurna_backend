@@ -6,6 +6,8 @@ const cors = require("cors");
 const serviceRoutes = require("./src/routes/serviceRoutes");
 const testimonialRoutes = require("./src/routes/testimonialRoutes");
 const blogRoutes = require("./src/routes/blogRoutes");
+const blogCategoryRoutes = require("./src/routes/blogCategoryRoutes");
+const blogSubCategoryRoutes = require("./src/routes/blogSubCategoryRoutes");
 const ebookRoutes = require("./src/routes/ebookRoutes");
 const upcomingEventRoutes = require("./src/routes/upcomingEventRoutes");
 const ongoingEventRoutes = require("./src/routes/ongoingEventRoutes");
@@ -56,6 +58,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/blogs", blogRoutes);
+app.use("/api/blog-categories", blogCategoryRoutes);
+app.use("/api/blog-subcategories", blogSubCategoryRoutes);
 
 // ****************************************************************** //
 
