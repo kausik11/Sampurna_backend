@@ -1,28 +1,15 @@
 const app = require("../app");
 const connectDB = require("../src/config/db");
 
-const normalizeOrigin = (value) => {
-  if (!value) return value;
-  if (value === "*") return "*";
-  if (/^https?:\/\//i.test(value)) return value;
-  return `https://${value}`;
-};
-
-const getAllowedOrigins = () => {
-  const rawOrigins = process.env.CORS_ORIGIN || "*";
-  return rawOrigins
-    .split(",")
-    .map((origin) => normalizeOrigin(origin.trim()))
-    .filter(Boolean);
-};
+const allowedOrigins = [
+  "https://savemedha.com",
+  "https://savemedha-admin.vercel.app",
+];
 
 const applyCorsHeaders = (req, res) => {
   const origin = req.headers.origin;
-  const allowedOrigins = getAllowedOrigins();
 
-  if (allowedOrigins.includes("*")) {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-  } else if (origin && allowedOrigins.includes(origin)) {
+  if (origin && allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
   }

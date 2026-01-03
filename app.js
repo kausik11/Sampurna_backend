@@ -31,9 +31,18 @@ const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
 // Honor reverse proxies (e.g. Vercel) so req.ip contains the real client IP
 app.set("trust proxy", true);
 
+const allowedOrigins = [
+  "https://savemedha.com",
+  "https://savemedha-admin.vercel.app",
+];
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   })
