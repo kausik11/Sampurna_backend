@@ -1,8 +1,52 @@
 const app = require("../app");
 const connectDB = require("../src/config/db");
 
+const normalizeOrigin = (value) => {
+  if (!value) return value;
+  if (value === "*") return "*";
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+};
+
+const getAllowedOrigins = () => {
+  const rawOrigins = process.env.CORS_ORIGIN || "*";
+  return rawOrigins
+    .split(",")
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter(Boolean);
+};
+
+const applyCorsHeaders = (req, res) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = getAllowedOrigins();
+
+  if (allowedOrigins.includes("*")) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  } else if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    req.headers["access-control-request-headers"] || "Content-Type, Authorization"
+  );
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+};
+
 module.exports = async (req, res) => {
   try {
+    applyCorsHeaders(req, res);
+
+    if (req.method === "OPTIONS") {
+      res.statusCode = 204;
+      return res.end();
+    }
+
     await connectDB();
     return app(req, res);
   } catch (err) {
