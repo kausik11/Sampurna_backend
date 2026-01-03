@@ -31,9 +31,27 @@ const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
 // Honor reverse proxies (e.g. Vercel) so req.ip contains the real client IP
 app.set("trust proxy", true);
 
+const normalizeOrigin = (value) => {
+  if (!value) return value;
+  if (value === "*") return "*";
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+};
+
+const rawOrigins = process.env.CORS_ORIGIN || "*";
+const allowedOrigins = rawOrigins
+  .split(",")
+  .map((origin) => normalizeOrigin(origin.trim()))
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes("*")) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   })
