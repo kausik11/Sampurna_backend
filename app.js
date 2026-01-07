@@ -34,7 +34,7 @@ app.set("trust proxy", true);
 const allowedOrigins = [
   "https://savemedha.com",
   "https://savemedha-admin.vercel.app",
-  "http://localhost:517"
+  "http://localhost:5173"
 ];
 
 app.use(
