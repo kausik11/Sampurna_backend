@@ -205,8 +205,8 @@ const shareBlogBySlug = async (req, res) => {
     }
 
     const logoUrl =
-      process.env.SHARE_LOGO_URL || "https://cdn.pixabay.com/photo/2017/03/16/21/18/logo-2150297_640.png";
-    const shareUrl = `${frontendBaseUrl}/blogs/${blog._id}`;
+      process.env.SHARE_LOGO_URL || "https://savemedha.com/assets/background-D-oyg95a.jpg";
+    const shareUrl = `${frontendBaseUrl}/blogs/${blog.slug}`;
     const title = escapeHtml(blog.title || "Save Medha Blog");
     const description = escapeHtml(truncate(stripHtml(blog.description), 200));
 
