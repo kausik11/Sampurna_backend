@@ -12,6 +12,8 @@ const {
   getBlogsByCategory,
   addComment,
   debounceSearch,
+  getBlogBySlug,
+  shareBlogBySlug,
 } = require("../controllers/blogController");
 
 const router = express.Router();
@@ -25,6 +27,9 @@ const blogUploads = upload.fields([
 router.get("/", getBlogs);
 router.get("/search", debounceSearch, searchBlogs);
 router.get("/category/:category", getBlogsByCategory);
+router.get("/share/:slug", shareBlogBySlug);
+// GET BLOGS BY SLUG (must be before "/:id")
+router.get("/slug/:slug", getBlogBySlug);
 router.get("/:id", getBlogById);
 router.post("/:id/like", likeBlog);
 router.post("/:id/share", shareBlog);

@@ -2,6 +2,8 @@ const Blog = require("../models/Blog");
 const BlogCategory = require("../models/BlogCategory");
 const BlogSubCategory = require("../models/BlogSubCategory");
 const cloudinary = require("../config/cloudinary");
+const slugify = require("../utils/slugify")
+
 const SEARCH_DEBOUNCE_MS = 600;
 const lastSearchByClient = new Map();
 
@@ -75,6 +77,27 @@ const resolveSubCategory = async (subCategoryInput, categoryId) => {
   return BlogSubCategory.findOne({ name, category: categoryId });
 };
 
+const escapeHtml = (value) => {
+  if (!value) return "";
+  return `${value}`
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+};
+
+const stripHtml = (value) => {
+  if (!value) return "";
+  return `${value}`.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+};
+
+const truncate = (value, maxLength) => {
+  if (!value) return "";
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1)}…`;
+};
+
 const debounceSearch = (req, res, next) => {
   const key = req.ip || "global";
   const now = Date.now();
@@ -141,6 +164,96 @@ const getBlogById = async (req, res) => {
   } catch (error) {
     console.error("Failed to fetch blog:", error);
     res.status(500).json({ message: "Failed to fetch blog" });
+  }
+};
+
+// get blogs routes by its name or title
+const getBlogBySlug = async (req, res) => {
+  try {
+    const blog = await Blog.findOne({ slug: req.params.slug });
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    res.status(200).json(blog);
+    
+  } catch (error) {
+      console.error("Failed to fetch blog:", error);
+    res.status(500).json({ message: "Failed to fetch blog" });
+  }
+}
+
+const shareBlogBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const blog = await Blog.findOne({ slug });
+
+    const frontendBaseUrl = process.env.FRONTEND_BASE_URL || "https://savemedha.com";
+    if (!blog) {
+      return res.status(404).type("html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>Blog not found</title>
+    <meta http-equiv="refresh" content="0;url=${frontendBaseUrl}/blogs" />
+  </head>
+  <body>
+    <p>Blog not found. <a href="${frontendBaseUrl}/blogs">Go to blogs</a></p>
+  </body>
+</html>`);
+    }
+
+    const logoUrl =
+      process.env.SHARE_LOGO_URL || "https://cdn.pixabay.com/photo/2017/03/16/21/18/logo-2150297_640.png";
+    const shareUrl = `${frontendBaseUrl}/blogs/${blog._id}`;
+    const title = escapeHtml(blog.title || "Save Medha Blog");
+    const description = escapeHtml(truncate(stripHtml(blog.description), 200));
+
+    return res.status(200).type("html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    <meta name="description" content="${description}" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="${shareUrl}" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Save Medha" />
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:url" content="${shareUrl}" />
+    <meta property="og:image" content="${logoUrl}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${description}" />
+    <meta name="twitter:image" content="${logoUrl}" />
+
+    <meta http-equiv="refresh" content="0;url=${shareUrl}" />
+    <script>window.location.replace(${JSON.stringify(shareUrl)});</script>
+  </head>
+  <body>
+    <p>Redirecting to <a href="${shareUrl}">${title}</a>...</p>
+  </body>
+</html>`);
+  } catch (error) {
+    console.error("Failed to render share page:", error);
+    return res.status(500).type("html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>Server error</title>
+  </head>
+  <body>
+    <p>Something went wrong. Please try again later.</p>
+  </body>
+</html>`);
   }
 };
 
@@ -214,6 +327,7 @@ const createBlog = async (req, res) => {
 
     const blog = await Blog.create({
       title,
+      slug:slugify(title),
       description,
       category: resolvedCategory.name,
       subCategory: resolvedSubCategory.name,
@@ -228,6 +342,7 @@ const createBlog = async (req, res) => {
     });
 
     res.status(201).json(blog);
+    clg("blog",blog);
   } catch (error) {
     console.error("Failed to create blog:", error);
     res.status(500).json({ message: "Failed to create blog" });
@@ -521,4 +636,6 @@ module.exports = {
   getBlogsByCategory,
   addComment,
   debounceSearch,
+  getBlogBySlug,
+  shareBlogBySlug,
 };

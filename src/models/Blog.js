@@ -28,6 +28,13 @@ const blogSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+     slug: {
+      type: String,
+      // required: true,
+      unique: true,
+      lowercase: true,
+      index: true,
+    },
     metadata: {
       type: [String],
       default: [],
