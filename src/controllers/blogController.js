@@ -160,7 +160,7 @@ const getBlogById = async (req, res) => {
       return res.status(404).json({ message: "Blog not found" });
     }
 
-    res.status(200).json(blog);
+    // res.status(200).json(blog);
   } catch (error) {
     console.error("Failed to fetch blog:", error);
     res.status(500).json({ message: "Failed to fetch blog" });
@@ -174,7 +174,8 @@ const getBlogBySlug = async (req, res) => {
     if (!blog) {
       return res.status(404).json({ message: "Blog not found" });
     }
-
+     const viewCount = blog.viewsCount + 1;
+    await Blog.updateOne({ _id: blog._id }, { $set: { viewsCount: viewCount } });
     res.status(200).json(blog);
     
   } catch (error) {
@@ -294,6 +295,7 @@ const createBlog = async (req, res) => {
       subCategory,
       cancerStage,
       writtenBy,
+      youtubeLink
     } = req.body;
     const adminQuotation = req.body.adminQuotation?.trim() || undefined;
     const adminName = req.body.adminName?.trim() || undefined;
@@ -367,10 +369,10 @@ const createBlog = async (req, res) => {
       imagePublicId,
       blogImage: blogImages,
       adminStatement,
+      youtubeLink
     });
 
     res.status(201).json(blog);
-    clg("blog",blog);
   } catch (error) {
     console.error("Failed to create blog:", error);
     res.status(500).json({ message: "Failed to create blog" });
