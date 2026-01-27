@@ -21,6 +21,42 @@ const commentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const tableOfContentsItemSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    anchor: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
+const resourceSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      required: true,
+      enum: ["EBOOK_REFERENCE", "SIMILAR_BLOG"],
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    url: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
 const blogSchema = new mongoose.Schema(
   {
     title: {
@@ -123,6 +159,14 @@ const blogSchema = new mongoose.Schema(
         validator: (value) => Array.isArray(value) && value.length === 2,
         message: "Exactly two blog images are required.",
       },
+      default: [],
+    },
+    tableOfContents: {
+      type: [tableOfContentsItemSchema],
+      default: [],
+    },
+    resources: {
+      type: [resourceSchema],
       default: [],
     },
     adminStatement: {

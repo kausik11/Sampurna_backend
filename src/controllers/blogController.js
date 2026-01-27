@@ -53,6 +53,47 @@ const normalizeFaqs = (faqs) => {
     .filter((item) => item.question || item.answer);
 };
 
+const normalizeTableOfContents = (toc) => {
+  if (!toc) return [];
+  let parsed = toc;
+  if (typeof toc === "string") {
+    try {
+      parsed = JSON.parse(toc);
+    } catch (error) {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map((item) => ({
+      title: item?.title ? `${item.title}`.trim() : "",
+      anchor: item?.anchor ? `${item.anchor}`.trim() : "",
+    }))
+    .filter((item) => item.title);
+};
+
+const VALID_RESOURCE_TYPES = ["EBOOK_REFERENCE", "SIMILAR_BLOG"];
+
+const normalizeResources = (resources) => {
+  if (!resources) return [];
+  let parsed = resources;
+  if (typeof resources === "string") {
+    try {
+      parsed = JSON.parse(resources);
+    } catch (error) {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map((item) => ({
+      type: item?.type ? `${item.type}`.trim().toUpperCase() : "",
+      title: item?.title ? `${item.title}`.trim() : "",
+      url: item?.url ? `${item.url}`.trim() : "",
+    }))
+    .filter((item) => item.title || item.url || item.type);
+};
+
 const normalizeName = (value) => {
   if (!value) return "";
   return `${value}`.trim().toLowerCase();
@@ -302,6 +343,8 @@ const createBlog = async (req, res) => {
     const adminDesignation = req.body.adminDesignation?.trim() || undefined;
     const metadata = normalizeMetadata(req.body.metadata);
     const faqs = normalizeFaqs(req.body.faqs);
+    const tableOfContents = normalizeTableOfContents(req.body.tableOfContents);
+    const resources = normalizeResources(req.body.resources);
 
     if (!title || !description || !category || !subCategory || !cancerStage || !writtenBy) {
       return res
@@ -369,7 +412,9 @@ const createBlog = async (req, res) => {
       imagePublicId,
       blogImage: blogImages,
       adminStatement,
-      youtubeLink
+      youtubeLink,
+      tableOfContents,
+      resources: resources.filter((resource) => VALID_RESOURCE_TYPES.includes(resource.type)),
     });
 
     res.status(201).json(blog);
@@ -394,6 +439,8 @@ const updateBlog = async (req, res) => {
     const adminDesignation = req.body.adminDesignation?.trim() || undefined;
     const metadata = normalizeMetadata(req.body.metadata);
     const faqs = normalizeFaqs(req.body.faqs);
+    const tableOfContents = normalizeTableOfContents(req.body.tableOfContents);
+    const resources = normalizeResources(req.body.resources);
     const blog = await Blog.findById(req.params.id);
 
     if (!blog) {
@@ -444,6 +491,10 @@ const updateBlog = async (req, res) => {
     if (writtenBy) blog.writtenBy = writtenBy;
     if (metadata.length) blog.metadata = metadata;
     if (req.body.faqs !== undefined) blog.faqs = faqs;
+    if (req.body.tableOfContents !== undefined) blog.tableOfContents = tableOfContents;
+    if (req.body.resources !== undefined) {
+      blog.resources = resources.filter((resource) => VALID_RESOURCE_TYPES.includes(resource.type));
+    }
 
     if (req.files?.image?.[0]) {
       const { imageUrl, imagePublicId } = await uploadImage(req.files.image[0], "savemedha/blogs");
