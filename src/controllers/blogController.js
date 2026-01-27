@@ -183,12 +183,40 @@ const getBlogBySlug = async (req, res) => {
   }
 }
 
+
+// const shareBlog = async (req, res) => {
+//   try {
+//     const blog = await Blog.findByIdAndUpdate(
+//       req.params.id,
+//       { $inc: { sharesCount: 1 } },
+//       { new: true }
+//     );
+
+//     if (!blog) {
+//       return res.status(404).json({ message: "Blog not found" });
+//     }
+
+//     res.status(200).json(blog);
+//   } catch (error) {
+//     console.error("Failed to share blog:", error);
+//     res.status(500).json({ message: "Failed to share blog" });
+//   }
+// };
+
 const shareBlogBySlug = async (req, res) => {
   try {
-    const { slug } = req.params;
-    const blog = await Blog.findOne({ slug });
+    const { id } = req.params;
+    // console.log("id",id);
+    const blog = await Blog.findById(id);
+    // console.log("share blog",blog);
+    const sharecount = await Blog.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { sharesCount: 1 } },
+      { new: true }
+    )
 
     const frontendBaseUrl = process.env.FRONTEND_BASE_URL || "https://savemedha.com";
+
     if (!blog) {
       return res.status(404).type("html").send(`<!doctype html>
 <html lang="en">
@@ -204,8 +232,8 @@ const shareBlogBySlug = async (req, res) => {
 </html>`);
     }
 
-    const logoUrl =
-      process.env.SHARE_LOGO_URL || "https://savemedha.com/assets/background-D-oyg95a.jpg";
+
+    const logoUrl = process.env.SHARE_LOGO_URL || "https://savemedha.com/assets/background-D-oyg95a.jpg";
     const shareUrl = `${frontendBaseUrl}/blogs/${blog.slug}`;
     const title = escapeHtml(blog.title || "Save Medha Blog");
     const description = escapeHtml(truncate(stripHtml(blog.description), 200));

@@ -27,7 +27,7 @@ const blogUploads = upload.fields([
 router.get("/", getBlogs);
 router.get("/search", debounceSearch, searchBlogs);
 router.get("/category/:category", getBlogsByCategory);
-router.get("/share/:slug", shareBlogBySlug);
+router.get("/:id/share", shareBlogBySlug);
 // GET BLOGS BY SLUG (must be before "/:id")
 router.get("/slug/:slug", getBlogBySlug);
 router.get("/:id", getBlogById);
