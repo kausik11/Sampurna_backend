@@ -433,6 +433,7 @@ const updateBlog = async (req, res) => {
       subCategory,
       cancerStage,
       writtenBy,
+      youtubeLink,
     } = req.body;
     const adminQuotation = req.body.adminQuotation?.trim() || undefined;
     const adminName = req.body.adminName?.trim() || undefined;
@@ -564,6 +565,10 @@ const updateBlog = async (req, res) => {
         name: nextName,
         designation: nextDesignation,
       };
+    }
+
+    if(youtubeLink){
+      blog.youtubeLink = youtubeLink
     }
 
     await blog.save();
