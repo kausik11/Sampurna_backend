@@ -59,7 +59,6 @@ const preferenceDefaults = {
   country: "IN",
   region: "WB",
   timezone: "Asia/Kolkata",
-  language: "bn",
   currency: "INR",
 };
 
@@ -71,69 +70,55 @@ const getCookieOptions = () => ({
 });
 
 // Read preference cookies and expose defaults if missing
-app.use((req, res, next) => {
-  const fromCookies = req.cookies || {};
-  const preferences = {
-    country: fromCookies.country || preferenceDefaults.country,
-    region: fromCookies.region || preferenceDefaults.region,
-    timezone: fromCookies.timezone || preferenceDefaults.timezone,
-    language: fromCookies.language || preferenceDefaults.language,
-    currency: fromCookies.currency || preferenceDefaults.currency,
-  };
+// app.use((req, res, next) => {
+//   const fromCookies = req.cookies || {};
+//   const preferences = {
+//     country: fromCookies.country || preferenceDefaults.country,
+//     region: fromCookies.region || preferenceDefaults.region,
+//     timezone: fromCookies.timezone || preferenceDefaults.timezone,
+//     language: fromCookies.language || preferenceDefaults.language,
+//     currency: fromCookies.currency || preferenceDefaults.currency,
+//   };
 
-  req.preferences = preferences;
-  res.locals.preferences = preferences;
-  next();
-});
+//   req.preferences = preferences;
+//   res.locals.preferences = preferences;
+//   next();
+// });
 
 // Set preference cookies (explicit POST)
 app.post("/set-preferences", async (req, res, next) => {
   const options = getCookieOptions();
-  Object.entries(preferenceDefaults).forEach(([key, value]) => {
+  const incoming = req.body || {};
+  const preferences = {
+    country: incoming.location.country_name || preferenceDefaults.country,
+    region: incoming.location.state_code || preferenceDefaults.region,
+    timezone: incoming.location.city  || preferenceDefaults.timezone,
+    currency: incoming.currency.code || preferenceDefaults.currency,
+  };
+
+  Object.entries(preferences).forEach(([key, value]) => {
     res.cookie(key, value, options);
   });
 
   try {
-    const {
-      ip,
-      asn,
-      as_name,
-      as_domain,
-      country_code,
-      country,
-      continent_code,
-      continent,
-    } = req.body || {};
+    const { ip, location, country_metadata, currency, city,country_name, zipcode,district } = req.body || {};
 
-    if (
-      !ip ||
-      !asn ||
-      !as_name ||
-      !as_domain ||
-      !country_code ||
-      !country ||
-      !continent_code ||
-      !continent
-    ) {
+    if (!ip || !location || !country_metadata || !currency) {
       return res.status(400).json({
         ok: false,
         message:
-          "Missing required fields: ip, asn, as_name, as_domain, country_code, country, continent_code, continent",
+          "Missing required fields: ip, location, country_metadata, currency",
       });
     }
 
     await PreferenceEvent.create({
       ip,
-      asn,
-      as_name,
-      as_domain,
-      country_code,
-      country,
-      continent_code,
-      continent,
+      location,
+      country_metadata,
+      currency,
     });
 
-    return res.json({ ok: true, preferences: preferenceDefaults });
+    return res.json({ ok: true, preferences });
   } catch (err) {
     return next(err);
   }
