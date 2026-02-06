@@ -3,6 +3,7 @@ const path = require("path");
 const app = express();
 const morgan = require("morgan");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const serviceRoutes = require("./src/routes/serviceRoutes");
 const testimonialRoutes = require("./src/routes/testimonialRoutes");
 const blogRoutes = require("./src/routes/blogRoutes");
@@ -27,6 +28,7 @@ const treatmentFaqRoutes = require("./src/routes/treatmentFaqsRoute");
 const patientSuccessRoutes = require("./src/routes/patientSuccessRoutes");
 const authMiddleware = require("./src/middlewares/authMiddleware");
 const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
+const PreferenceEvent = require("./src/models/PreferenceEvent");
 
 // Honor reverse proxies (e.g. Vercel) so req.ip contains the real client IP
 app.set("trust proxy", true);
@@ -49,8 +51,103 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 app.use(morgan("dev"));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+const preferenceDefaults = {
+  country: "IN",
+  region: "WB",
+  timezone: "Asia/Kolkata",
+  language: "bn",
+  currency: "INR",
+};
+
+const getCookieOptions = () => ({
+  maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+  httpOnly: true,
+  sameSite: "lax",
+  secure: process.env.NODE_ENV === "production",
+});
+
+// Read preference cookies and expose defaults if missing
+app.use((req, res, next) => {
+  const fromCookies = req.cookies || {};
+  const preferences = {
+    country: fromCookies.country || preferenceDefaults.country,
+    region: fromCookies.region || preferenceDefaults.region,
+    timezone: fromCookies.timezone || preferenceDefaults.timezone,
+    language: fromCookies.language || preferenceDefaults.language,
+    currency: fromCookies.currency || preferenceDefaults.currency,
+  };
+
+  req.preferences = preferences;
+  res.locals.preferences = preferences;
+  next();
+});
+
+// Set preference cookies (explicit POST)
+app.post("/set-preferences", async (req, res, next) => {
+  const options = getCookieOptions();
+  Object.entries(preferenceDefaults).forEach(([key, value]) => {
+    res.cookie(key, value, options);
+  });
+
+  try {
+    const {
+      ip,
+      asn,
+      as_name,
+      as_domain,
+      country_code,
+      country,
+      continent_code,
+      continent,
+    } = req.body || {};
+
+    if (
+      !ip ||
+      !asn ||
+      !as_name ||
+      !as_domain ||
+      !country_code ||
+      !country ||
+      !continent_code ||
+      !continent
+    ) {
+      return res.status(400).json({
+        ok: false,
+        message:
+          "Missing required fields: ip, asn, as_name, as_domain, country_code, country, continent_code, continent",
+      });
+    }
+
+    await PreferenceEvent.create({
+      ip,
+      asn,
+      as_name,
+      as_domain,
+      country_code,
+      country,
+      continent_code,
+      continent,
+    });
+
+    return res.json({ ok: true, preferences: preferenceDefaults });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// Fetch all stored preference events (admin/debug use)
+app.get("/preference-events", async (_req, res, next) => {
+  try {
+    const events = await PreferenceEvent.find().sort({ createdAt: -1 });
+    return res.json({ ok: true, count: events.length, events });
+  } catch (err) {
+    return next(err);
+  }
+});
 
 // Quick responses to keep serverless invocations short
 app.get("/", (_req, res) => res.json({ ok: true, message: "API is running" }));
