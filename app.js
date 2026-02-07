@@ -67,6 +67,7 @@ const getCookieOptions = () => ({
   httpOnly: true,
   sameSite: "lax",
   secure: process.env.NODE_ENV === "production",
+   path: "/",
 });
 
 // Read preference cookies and expose defaults if missing
