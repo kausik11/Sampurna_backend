@@ -125,15 +125,19 @@ app.post("/set-preferences", async (req, res, next) => {
   }
 });
 
-// Fetch all stored preference events (admin/debug use)
-app.get("/preference-events", async (_req, res, next) => {
+const sendPreferenceEvents = async (_req, res, next) => {
   try {
     const events = await PreferenceEvent.find().sort({ createdAt: -1 });
     return res.json({ ok: true, count: events.length, events });
   } catch (err) {
     return next(err);
   }
-});
+};
+
+// Fetch all stored preference events (admin/debug use)
+app.get("/preference-events", sendPreferenceEvents);
+// Admin app calls /api via axios baseURL
+app.get("/api/preference-events", sendPreferenceEvents);
 
 // Quick responses to keep serverless invocations short
 app.get("/", (_req, res) => res.json({ ok: true, message: "API is running" }));
