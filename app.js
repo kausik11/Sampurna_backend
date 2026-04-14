@@ -8,13 +8,7 @@ const serviceRoutes = require("./src/routes/serviceRoutes");
 const testimonialRoutes = require("./src/routes/testimonialRoutes");
 const callbackRoutes = require("./src/routes/callbackRoutes");
 const newsletterRoutes = require("./src/routes/newsletterRoutes");
-const treatmentRoutes = require("./src/routes/treatmentRoutes");
-const treatmentSubCategoryRoutes = require("./src/routes/treatmentSubCategoryRoutes");
-const treatmentDetailRoutes = require("./src/routes/treatmentDetailRoutes");
 const userRoutes = require("./src/routes/userRoutes");
-const analyticsRoutes = require("./src/routes/analyticsRoutes");
-const treatmentFaqRoutes = require("./src/routes/treatmentFaqsRoute");
-const patientSuccessRoutes = require("./src/routes/patientSuccessRoutes");
 const resultImageRoutes = require("./src/routes/resultImageRoutes");
 const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
 const PreferenceEvent = require("./src/models/PreferenceEvent");
@@ -114,20 +108,6 @@ app.post("/set-preferences", async (req, res, next) => {
   }
 });
 
-const sendPreferenceEvents = async (_req, res, next) => {
-  try {
-    const events = await PreferenceEvent.find().sort({ createdAt: -1 });
-    return res.json({ ok: true, count: events.length, events });
-  } catch (err) {
-    return next(err);
-  }
-};
-
-// Fetch all stored preference events (admin/debug use)
-app.get("/preference-events", sendPreferenceEvents);
-// Admin app calls /api via axios baseURL
-app.get("/api/preference-events", sendPreferenceEvents);
-
 // Quick responses to keep serverless invocations short
 app.get("/", (_req, res) => res.json({ ok: true, message: "API is running" }));
 app.get("/favicon.ico", (_req, res) => res.status(204).end());
@@ -144,32 +124,10 @@ app.use("/api/users", userRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/testimonials", testimonialRoutes);
 
-  
-
-// Treatments: router handles auth for writes; reads remain public
-// inused
-
-app.use("/api/treatments", treatmentRoutes);  
-
-// Treatment FAQs: public read, protected write inside router
-// inused
-app.use("/api/treatment-faqs", treatmentFaqRoutes);
-
-// Treatment sub-categories: router handles auth for writes; reads remain public
-// notused
-app.use("/api/treatment-sub-categories", treatmentSubCategoryRoutes);
-// Treatment details: router handles auth for writes; reads remain public
-// notused
-app.use("/api/treatment-details", treatmentDetailRoutes);
-
 // Public endpoints
 app.use("/api/callbacks", callbackRoutes);
 app.use("/api/newsletter", newsletterRoutes);
 
-// Visitor analytics
-app.use("/api/analytics", analyticsRoutes);
-// Patient success stories: public read, protected write
-app.use("/api/patient-success-stories", patientSuccessRoutes);
 // Result before/after images
 app.use("/api/resultimage", resultImageRoutes);
 app.use("/api/result-images", resultImageRoutes);
