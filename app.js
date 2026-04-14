@@ -11,6 +11,7 @@ const newsletterRoutes = require("./src/routes/newsletterRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const resultImageRoutes = require("./src/routes/resultImageRoutes");
 const videoTestimonialRoutes = require("./src/routes/videoTestimonialRoutes");
+const faqRoutes = require("./src/routes/faqRoutes");
 const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
 const PreferenceEvent = require("./src/models/PreferenceEvent");
 
@@ -134,6 +135,8 @@ app.use("/api/resultimage", resultImageRoutes);
 app.use("/api/result-images", resultImageRoutes);
 // Video testimonials
 app.use("/api/video-testimonials", videoTestimonialRoutes);
+// FAQs
+app.use("/api/faqs", faqRoutes);
 // 404 handler for any unmatched routes
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Not found" });
