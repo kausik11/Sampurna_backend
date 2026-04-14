@@ -15,6 +15,7 @@ const userRoutes = require("./src/routes/userRoutes");
 const analyticsRoutes = require("./src/routes/analyticsRoutes");
 const treatmentFaqRoutes = require("./src/routes/treatmentFaqsRoute");
 const patientSuccessRoutes = require("./src/routes/patientSuccessRoutes");
+const resultImageRoutes = require("./src/routes/resultImageRoutes");
 const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
 const PreferenceEvent = require("./src/models/PreferenceEvent");
 
@@ -169,6 +170,9 @@ app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/analytics", analyticsRoutes);
 // Patient success stories: public read, protected write
 app.use("/api/patient-success-stories", patientSuccessRoutes);
+// Result before/after images
+app.use("/api/resultimage", resultImageRoutes);
+app.use("/api/result-images", resultImageRoutes);
 // 404 handler for any unmatched routes
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Not found" });
