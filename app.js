@@ -20,8 +20,7 @@ const PreferenceEvent = require("./src/models/PreferenceEvent");
 app.set("trust proxy", true);
 
 const allowedOrigins = [
-  "https://savemedha.com",
-  "https://savemedha-admin.vercel.app",
+ "https://shampurna-a.vercel.app",
   "http://localhost:5173"
 ];
 
