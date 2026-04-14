@@ -22,7 +22,7 @@ const generateToken = (userId, tokenVersion) => {
 const uploadUserImage = async (file) => {
   const base64Image = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
   const uploadResult = await cloudinary.uploader.upload(base64Image, {
-    folder: "savemedha/users",
+    folder: "shampurna/users",
     resource_type: "auto",
   });
 
