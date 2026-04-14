@@ -6,27 +6,15 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const serviceRoutes = require("./src/routes/serviceRoutes");
 const testimonialRoutes = require("./src/routes/testimonialRoutes");
-const blogRoutes = require("./src/routes/blogRoutes");
-const blogCategoryRoutes = require("./src/routes/blogCategoryRoutes");
-const blogSubCategoryRoutes = require("./src/routes/blogSubCategoryRoutes");
-const ebookRoutes = require("./src/routes/ebookRoutes");
-const upcomingEventRoutes = require("./src/routes/upcomingEventRoutes");
-const ongoingEventRoutes = require("./src/routes/ongoingEventRoutes");
 const callbackRoutes = require("./src/routes/callbackRoutes");
 const newsletterRoutes = require("./src/routes/newsletterRoutes");
 const treatmentRoutes = require("./src/routes/treatmentRoutes");
 const treatmentSubCategoryRoutes = require("./src/routes/treatmentSubCategoryRoutes");
 const treatmentDetailRoutes = require("./src/routes/treatmentDetailRoutes");
-const addressRoutes = require("./src/routes/addressRoutes");
-const contactUsRoutes = require("./src/routes/contactUsRoutes");
-const jobRoutes = require("./src/routes/jobRoutes");
-const applicationRoutes = require("./src/routes/applicationRoutes");
 const userRoutes = require("./src/routes/userRoutes");
-const countRoutes = require("./src/routes/countRoutes");
 const analyticsRoutes = require("./src/routes/analyticsRoutes");
 const treatmentFaqRoutes = require("./src/routes/treatmentFaqsRoute");
 const patientSuccessRoutes = require("./src/routes/patientSuccessRoutes");
-const authMiddleware = require("./src/middlewares/authMiddleware");
 const globalErrorHandler = require("./src/middlewares/globalErrorHandler");
 const PreferenceEvent = require("./src/models/PreferenceEvent");
 
@@ -154,20 +142,6 @@ app.use("/api/users", userRoutes);
 // Protected admin resources
 app.use("/api/services", serviceRoutes);
 app.use("/api/testimonials", testimonialRoutes);
-app.use("/api/blogs", blogRoutes);
-app.use("/api/blog-categories", blogCategoryRoutes);
-app.use("/api/blog-subcategories", blogSubCategoryRoutes);
-
-// ****************************************************************** //
-
-
-
-// Ebooks: router handles auth for writes; reads remain public
-app.use("/api/ebooks", ebookRoutes);
-// Upcoming events: router handles auth for writes; reads remain public
-app.use("/api/upcoming-events", upcomingEventRoutes);
-// Ongoing events: router handles auth for writes; reads remain public
-app.use("/api/ongoing-events", ongoingEventRoutes);
 
   
 
@@ -187,21 +161,10 @@ app.use("/api/treatment-sub-categories", treatmentSubCategoryRoutes);
 // notused
 app.use("/api/treatment-details", treatmentDetailRoutes);
 
-
-// Addresses: router handles auth for writes; reads remain public
-app.use("/api/addresses", addressRoutes);
-// Contact submissions: router handles auth for writes; reads remain public
-app.use("/api/contact-us", contactUsRoutes);
-// Careers and applications
-app.use("/api/jobs", jobRoutes);
-app.use("/api/applications", applicationRoutes);
-
 // Public endpoints
 app.use("/api/callbacks", callbackRoutes);
 app.use("/api/newsletter", newsletterRoutes);
 
-// count for cities and Members
-app.use("/api/cities", countRoutes);
 // Visitor analytics
 app.use("/api/analytics", analyticsRoutes);
 // Patient success stories: public read, protected write
