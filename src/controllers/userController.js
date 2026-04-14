@@ -7,6 +7,7 @@ const registrationSuccess = require("../utils/registrationSuccess")
 
 const { JWT_SECRET } = process.env;
 const validrole  = ["admin", "superadmin", "administrator"];
+const normalizeText = (value) => `${value ?? ""}`.trim();
 
 const ensureJwtConfigured = () => {
   if (!JWT_SECRET) {
@@ -47,8 +48,14 @@ const registerUser = async (req, res) => {
       role,
     } = req.body;
 
-    if (!firstName || !lastName || !phoneNumber || !email || !password || !role) {
+    const normalizedPassword = String(password ?? "");
+
+    if (!firstName || !lastName || !phoneNumber || !email || !normalizedPassword || !role) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    if (normalizedPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
     // check a valid email or not 
@@ -78,7 +85,7 @@ const registerUser = async (req, res) => {
       designation,
       userImage: uploadedImage?.imageUrl,
       userImagePublicId: uploadedImage?.imagePublicId,
-      password,
+      password: normalizedPassword,
       role,
     });
 
@@ -103,17 +110,19 @@ const loginUser = async (req, res) => {
     ensureJwtConfigured();
 
     const { email, password } = req.body;
+    const normalizedEmail = normalizeText(email).toLowerCase();
+    const normalizedPassword = String(password ?? "");
     // console.log("dfvnfvk",email,password);
-    if (!email || !password) {
+    if (!normalizedEmail || !normalizedPassword) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await user.comparePassword(normalizedPassword);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -171,8 +180,12 @@ const updateUser = async (req, res) => {
       user.userImagePublicId = uploaded.imagePublicId;
     }
 
-    if (password) {
-      user.password = password;
+    if (password !== undefined) {
+      const normalizedPassword = String(password);
+      if (normalizedPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      user.password = normalizedPassword;
     }
 
     if (req.body.role) {

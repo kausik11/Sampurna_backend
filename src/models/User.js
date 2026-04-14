@@ -24,11 +24,11 @@ const userSchema = new mongoose.Schema(
 
 userSchema.pre("save", async function hashPassword() {
   if (!this.isModified("password")) return;
-  this.password = await bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(String(this.password), 10);
 });
 
 userSchema.methods.comparePassword = function comparePassword(candidate) {
-  return bcrypt.compare(candidate, this.password);
+  return bcrypt.compare(String(candidate), this.password);
 };
 
 userSchema.methods.toJSON = function toJSON() {
