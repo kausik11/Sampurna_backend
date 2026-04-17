@@ -38,16 +38,19 @@ const sendEmail = async (to, subject, message) => {
     });
 
     const mailOptions = {
-      from: SMTP_USER,
+      from: `Shampurna Aesthetic <${SMTP_USER}>`,
       to,
+      replyTo: SMTP_USER,
       subject,
       html: message, // render HTML templates such as registrationSuccess
     };
 
     const info = await transporter.sendMail(mailOptions);
     console.log("Email sent:", info.response);
+    return true;
   } catch (error) {
     console.error("Email failed to send", error);
+    return false;
   }
 };
 

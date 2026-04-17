@@ -1,12 +1,18 @@
 const CallbackRequest = require("../models/CallbackRequest");
 const Service = require("../models/Service");
 const sendEmail = require("../utils/sendEmail");
+const callbackRequestSuccess = require("../utils/callbackRequestSuccess");
 
 const VALID_STATUSES = ["pending", "not received", "done"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[+]?[0-9\s()-]{7,20}$/;
 
 const normalizeText = (value) => `${value ?? ""}`.trim();
+const normalizeServiceTitle = (value) =>
+  normalizeText(value)
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "");
 
 const getTodayDate = () => {
   const now = new Date();
@@ -59,30 +65,25 @@ const validateCallbackDetails = ({
   return null;
 };
 
-const serviceExists = async (title) => {
-  const service = await Service.findOne({ title }).select("_id");
-  return Boolean(service);
+const resolvePreferredService = async (title) => {
+  const normalizedTitle = normalizeServiceTitle(title);
+
+  if (!normalizedTitle) {
+    return null;
+  }
+
+  const services = await Service.find().select("title");
+
+  if (!services.length) {
+    return normalizeText(title);
+  }
+
+  const matchedService = services.find(
+    (service) => normalizeServiceTitle(service.title) === normalizedTitle
+  );
+
+  return matchedService?.title || null;
 };
-
-const escapeHtml = (value) =>
-  normalizeText(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-
-const callbackSuccessEmail = (callback) => `
-  <h2>Appointment Request Received</h2>
-  <p>Dear ${escapeHtml(callback.fullName)},</p>
-  <p>Your request has been submitted successfully. Our team will contact you soon.</p>
-  <p><strong>Preferred service:</strong> ${escapeHtml(callback.preferredService)}</p>
-  <p><strong>Preferred date:</strong> ${escapeHtml(callback.preferredDate)}</p>
-  <p><strong>Preferred time:</strong> ${escapeHtml(callback.preferredTime)}</p>
-  ${callback.description ? `<p><strong>Description:</strong> ${escapeHtml(callback.description)}</p>` : ""}
-  <br />
-  <p>Thank you,<br/>Shampurna</p>
-`;
 
 const createCallback = async (req, res) => {
   try {
@@ -104,7 +105,9 @@ const createCallback = async (req, res) => {
     });
     if (validationError) return res.status(400).json({ message: validationError });
 
-    if (!(await serviceExists(preferredService))) {
+    const resolvedPreferredService = await resolvePreferredService(preferredService);
+
+    if (!resolvedPreferredService) {
       return res.status(400).json({ message: "Preferred service must match an available service title" });
     }
 
@@ -112,16 +115,16 @@ const createCallback = async (req, res) => {
       fullName,
       phoneNumber,
       email,
-      preferredService,
+      preferredService: resolvedPreferredService,
       preferredDate,
       preferredTime,
       description,
     });
 
-    sendEmail(
+    await sendEmail(
       callback.email,
-      "Appointment Request Submitted Successfully",
-      callbackSuccessEmail(callback)
+      "Your Shampurna Appointment Request Has Been Received",
+      callbackRequestSuccess(callback)
     );
 
     res.status(201).json(callback);
@@ -184,10 +187,11 @@ const updateCallback = async (req, res) => {
       if (!preferredService) {
         return res.status(400).json({ message: "Preferred service cannot be empty" });
       }
-      if (!(await serviceExists(preferredService))) {
+      const resolvedPreferredService = await resolvePreferredService(preferredService);
+      if (!resolvedPreferredService) {
         return res.status(400).json({ message: "Preferred service must match an available service title" });
       }
-      callback.preferredService = preferredService;
+      callback.preferredService = resolvedPreferredService;
     }
 
     if (req.body.preferredDate !== undefined || req.body.preferedDate !== undefined) {
