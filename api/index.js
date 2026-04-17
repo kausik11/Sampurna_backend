@@ -5,6 +5,7 @@ const allowedOrigins = [
   "https://shampurna-a.vercel.app",
   "https://shampurna-admin.vercel.app",
   "https://sampurna-admin.vercel.app",
+  "https://www.shampurnaaesthetic.in",
   "http://localhost:5173",
 ];
 

@@ -22,6 +22,7 @@ app.set("trust proxy", true);
 const allowedOrigins = [
  "https://shampurna-a.vercel.app",
  "https://shampurna-admin.vercel.app",
+ "https://www.shampurnaaesthetic.in",
   "http://localhost:5173"
 ];
 
