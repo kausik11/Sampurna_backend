@@ -65,6 +65,21 @@ const serviceSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    priceLabel: {
+      type: String,
+      trim: true,
+      default: "Pricing",
+    },
+    priceValue: {
+      type: String,
+      trim: true,
+      default: "On consult",
+    },
+    priceNote: {
+      type: String,
+      trim: true,
+      default: "Service-specific quote",
+    },
     longdescription: {
       type: String,
       required: true,

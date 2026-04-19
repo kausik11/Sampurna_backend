@@ -40,6 +40,12 @@ const getUploadedFile = (files, ...fieldNames) => {
 
 const normalizeText = (value) => `${value ?? ""}`.trim();
 
+const defaultPricing = {
+  priceLabel: "Pricing",
+  priceValue: "On consult",
+  priceNote: "Service-specific quote",
+};
+
 const normalizeResultPayload = (body) => {
   const result = parseJSON(body.result, {});
   return {
@@ -65,10 +71,29 @@ const normalizeFaqsPayload = (body) => {
     .filter((faq) => faq.question || faq.answer);
 };
 
+const normalizePricingPayload = (body) => {
+  const pricing = parseJSON(body.pricing ?? body.price, {});
+  return {
+    priceLabel: normalizeText(pricing.priceLabel ?? pricing.label ?? body.priceLabel),
+    priceValue: normalizeText(pricing.priceValue ?? pricing.value ?? body.priceValue),
+    priceNote: normalizeText(pricing.priceNote ?? pricing.note ?? body.priceNote),
+  };
+};
+
+const serviceWithPricingDefaults = (service) => {
+  const serviceObject = typeof service.toObject === "function" ? service.toObject() : service;
+  return {
+    ...serviceObject,
+    priceLabel: serviceObject.priceLabel || defaultPricing.priceLabel,
+    priceValue: serviceObject.priceValue || defaultPricing.priceValue,
+    priceNote: serviceObject.priceNote || defaultPricing.priceNote,
+  };
+};
+
 const getServices = async (_req, res) => {
   try {
     const services = await Service.find().sort({ createdAt: -1 });
-    res.status(200).json(services);
+    res.status(200).json(services.map(serviceWithPricingDefaults));
   } catch (error) {
     console.error("Failed to fetch services:", error);
     res.status(500).json({ message: "Failed to fetch services" });
@@ -83,7 +108,7 @@ const getServiceById = async (req, res) => {
       return res.status(404).json({ message: "Service not found" });
     }
 
-    res.status(200).json(service);
+    res.status(200).json(serviceWithPricingDefaults(service));
   } catch (error) {
     console.error("Failed to fetch service:", error);
     res.status(500).json({ message: "Failed to fetch service" });
@@ -95,6 +120,7 @@ const createService = async (req, res) => {
     const title = normalizeText(req.body.title);
     const shortDescription = normalizeText(req.body.shortDescription);
     const tag = normalizeText(req.body.tag);
+    const pricing = normalizePricingPayload(req.body);
     const longdescription = normalizeText(req.body.longdescription);
     const resultPayload = normalizeResultPayload(req.body);
     const faqs = normalizeFaqsPayload(req.body);
@@ -105,6 +131,10 @@ const createService = async (req, res) => {
       return res.status(400).json({
         message: "Title, shortDescription, tag, and longdescription are required",
       });
+    }
+
+    if (!pricing.priceValue) {
+      return res.status(400).json({ message: "Price is required" });
     }
 
     if (!resultPayload.title || !resultPayload.description) {
@@ -128,6 +158,9 @@ const createService = async (req, res) => {
       title,
       shortDescription,
       tag,
+      priceLabel: pricing.priceLabel || defaultPricing.priceLabel,
+      priceValue: pricing.priceValue,
+      priceNote: pricing.priceNote || defaultPricing.priceNote,
       longdescription,
       result: {
         ...resultPayload,
@@ -172,6 +205,31 @@ const updateService = async (req, res) => {
       const tag = normalizeText(req.body.tag);
       if (!tag) return res.status(400).json({ message: "Tag cannot be empty" });
       service.tag = tag;
+    }
+
+    if (
+      req.body.pricing !== undefined ||
+      req.body.price !== undefined ||
+      req.body.priceLabel !== undefined ||
+      req.body.priceValue !== undefined ||
+      req.body.priceNote !== undefined
+    ) {
+      const pricing = normalizePricingPayload(req.body);
+
+      if (req.body.priceValue !== undefined || req.body.pricing !== undefined || req.body.price !== undefined) {
+        if (!pricing.priceValue) {
+          return res.status(400).json({ message: "Price cannot be empty" });
+        }
+        service.priceValue = pricing.priceValue;
+      }
+
+      if (req.body.priceLabel !== undefined || req.body.pricing !== undefined || req.body.price !== undefined) {
+        service.priceLabel = pricing.priceLabel || defaultPricing.priceLabel;
+      }
+
+      if (req.body.priceNote !== undefined || req.body.pricing !== undefined || req.body.price !== undefined) {
+        service.priceNote = pricing.priceNote || defaultPricing.priceNote;
+      }
     }
 
     if (req.body.longdescription !== undefined) {
@@ -255,7 +313,7 @@ const updateService = async (req, res) => {
 
     await service.save();
 
-    res.status(200).json(service);
+    res.status(200).json(serviceWithPricingDefaults(service));
   } catch (error) {
     console.error("Failed to update service:", error);
     res.status(500).json({ message: "Failed to update service" });
